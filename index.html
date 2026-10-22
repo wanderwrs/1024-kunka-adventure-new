@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>锟斤拷大冒险：解救 1024</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#04060a; --panel:rgba(13,17,23,.82); --border:rgba(88,214,235,.22);
+    --green:#39d353; --cyan:#58d6eb; --yellow:#e3b341; --red:#f85149; --pink:#ff4d9d;
+    --text:#c9d1d9; --dim:#7d8590;
+  }
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); overflow:hidden;
+    font-family:"Cascadia Code","JetBrains Mono",Consolas,"Microsoft YaHei",monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ============ 全屏抽象背景 ============ */
+  #matrix{position:fixed;inset:0;z-index:0;opacity:.20;pointer-events:none}
+  .bg-grid{
+    position:fixed;inset:-20% -20% -20% -20%;z-index:1;pointer-events:none;opacity:.28;
+    background-image:linear-gradient(rgba(88,214,235,.10) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(88,214,235,.10) 1px,transparent 1px);
+    background-size:52px 52px;
+    transform:perspective(600px) rotateX(58deg);
+    animation:gridmove 9s linear infinite;
+    mask-image:radial-gradient(ellipse at 50% 30%,#000 10%,transparent 72%);
+  }
+  @keyframes gridmove{to{background-position:0 52px,52px 0}}
+  .bg-glow{
+    position:fixed;inset:0;z-index:1;pointer-events:none;
+    background:
+      radial-gradient(600px 420px at 12% 0%,rgba(57,211,83,.16),transparent 70%),
+      radial-gradient(700px 500px at 92% 8%,rgba(88,214,235,.14),transparent 72%),
+      radial-gradient(800px 600px at 50% 108%,rgba(255,77,157,.10),transparent 70%);
+    animation:breathe 12s ease-in-out infinite alternate;
+  }
+  @keyframes breathe{to{opacity:.55;transform:scale(1.08)}}
+  .scanlines{
+    position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.16;
+    background:repeating-linear-gradient(180deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.55) 2px 4px);
+    mix-blend-mode:multiply;
+  }
+  /* ============ 顶栏 ============ */
+  .topbar{
+    position:fixed;top:0;left:0;right:0;height:62px;z-index:60;
+    display:flex;align-items:center;gap:18px;padding:0 22px;
+    background:linear-gradient(180deg,rgba(4,6,10,.94),rgba(4,6,10,.55));
+    border-bottom:1px solid rgba(88,214,235,.14);backdrop-filter:blur(10px);
+  }
+  .brand{font-size:19px;letter-spacing:3px;color:var(--green);white-space:nowrap}
+  .brand span{font-size:11px;color:var(--dim);letter-spacing:1px;margin-left:6px}
+  .brand .cursorline{display:inline-block;width:9px;height:16px;background:var(--green);margin-left:4px;animation:blink 1s steps(1) infinite;vertical-align:-2px}
+  @keyframes blink{50%{opacity:0}}
+  .stats{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+  .stats b{color:var(--cyan);font-weight:400}
+  .stats .rank b{color:var(--yellow)}
+  .top-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  /* ============ 布局 ============ */
+  .app{
+    position:relative;z-index:10;height:100vh;
+    display:grid;grid-template-columns:92px minmax(0,1fr) 172px;
+    gap:18px;padding:78px 20px 50px;
+  }
+  .rail{display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:6px}
+  .rail.left{justify-content:center}
+  .lv-node{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--dim);font-size:11px}
+  .lv-node .dotbox{
+    width:34px;height:34px;border:1px solid rgba(88,214,235,.22);border-radius:9px;
+    display:flex;align-items:center;justify-content:center;font-size:12px;
+    background:rgba(13,17,23,.6);transition:.3s;
+  }
+  .lv-node.done .dotbox{border-color:var(--green);color:var(--green);box-shadow:0 0 14px rgba(57,211,83,.35)}
+  .lv-node.now .dotbox{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 18px rgba(88,214,235,.5);transform:scale(1.12)}
+  .lv-line{width:1px;height:22px;background:linear-gradient(var(--border),transparent)}
+  /* 碎片坞 */
+  .frag-dock{gap:10px;justify-content:center}
+  .dock-title{font-size:10px;letter-spacing:2px;color:var(--dim);margin-bottom:4px;writing-mode:vertical-rl;text-orientation:mixed}
+  .frag-slot{
+    width:136px;padding:9px 10px;border-radius:9px;border:1px dashed rgba(88,214,235,.2);
+    background:rgba(13,17,23,.55);font-size:12px;color:var(--dim);
+    display:flex;align-items:center;gap:8px;transition:.35s;
+  }
+  .frag-slot .idx{font-size:10px;color:var(--dim);border:1px solid rgba(125,133,144,.4);border-radius:4px;padding:1px 4px}
+  .frag-slot.got{border-style:solid;border-color:var(--green);color:var(--green);background:rgba(57,211,83,.08);box-shadow:0 0 16px rgba(57,211,83,.18)}
+  .frag-slot.got .idx{border-color:var(--green);color:var(--green)}
+  .frag-slot.pulse{animation:slotpulse 1s ease-out}
+  @keyframes slotpulse{0%{transform:scale(1)}40%{transform:scale(1.12);box-shadow:0 0 26px rgba(57,211,83,.5)}100%{transform:scale(1)}}
+  /* 舞台 */
+  .stage{position:relative;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(88,214,235,.35) transparent}
+  .stage::-webkit-scrollbar{width:6px}
+  .stage::-webkit-scrollbar-thumb{background:rgba(88,214,235,.3);border-radius:3px}
+  .panel{
+    position:relative;min-height:100%;padding:clamp(26px,4vw,54px);
+    background:linear-gradient(155deg,rgba(13,17,23,.86),rgba(5,8,12,.92));
+    border:1px solid var(--border);border-radius:20px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.4),0 30px 90px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.04);
+    backdrop-filter:blur(14px);overflow:hidden;
+  }
+  .panel::before{
+    content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+    background:radial-gradient(500px 260px at 100% 0%,rgba(88,214,235,.10),transparent 70%);
+  }
+  .watermark{
+    position:absolute;right:10px;bottom:-30px;font-size:clamp(120px,20vw,260px);
+    font-weight:800;color:rgba(88,214,235,.05);line-height:.8;pointer-events:none;letter-spacing:-10px;
+  }
+  /* ============ 通用元素 ============ */
+  .kicker{font-size:11px;letter-spacing:4px;color:var(--cyan);text-transform:uppercase}
+  h1.hero{
+    position:relative;font-size:clamp(32px,6.4vw,72px);line-height:1.06;letter-spacing:2px;
+    color:#eafff0;margin:14px 0 6px;text-shadow:0 0 26px rgba(57,211,83,.45);
+  }
+  h1.hero .stroke{-webkit-text-stroke:1px var(--green);color:transparent;text-shadow:none}
+  .hero-glitch{position:relative;display:inline-block}
+  .hero-glitch::before,.hero-glitch::after{
+    content:attr(data-t);position:absolute;left:0;top:0;width:100%;overflow:hidden;pointer-events:none;
+  }
+  .hero-glitch::before{color:var(--cyan);transform:translate(-2px,0);clip-path:inset(0 0 55% 0);animation:gl1 4s infinite}
+  .hero-glitch::after{color:var(--pink);transform:translate(2px,0);clip-path:inset(55% 0 0 0);animation:gl2 4s infinite}
+  @keyframes gl1{0%,88%,100%{transform:translate(0,0);opacity:0}90%{transform:translate(-4px,-2px);opacity:.9}93%{transform:translate(3px,1px);opacity:.7}}
+  @keyframes gl2{0%,86%,100%{transform:translate(0,0);opacity:0}89%{transform:translate(4px,2px);opacity:.85}92%{transform:translate(-3px,-1px);opacity:.6}}
+  .lead{color:var(--text);font-size:15px;line-height:2;max-width:74ch}
+  .lead .bad{color:var(--red)}
+  .lead .hl{color:var(--yellow)}
+  .muted{color:var(--dim);font-size:12px;line-height:1.9}
+  .btn{
+    position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:rgba(57,211,83,.06);border:1px solid rgba(57,211,83,.55);color:var(--green);
+    font:inherit;font-size:14px;padding:12px 28px;border-radius:10px;cursor:pointer;
+    letter-spacing:1px;transition:.18s;overflow:hidden;
+  }
+  .btn::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(57,211,83,.28),transparent 70%);transform:translateX(-120%);transition:.5s}
+  .btn:hover{background:rgba(57,211,83,.16);box-shadow:0 0 26px rgba(57,211,83,.35),inset 0 0 20px rgba(57,211,83,.08)}
+  .btn:hover::after{transform:translateX(120%)}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
+  .btn.small{padding:8px 16px;font-size:12px}
+  .btn.ghost{border-color:rgba(88,214,235,.45);color:var(--cyan);background:rgba(88,214,235,.05)}
+  .btn.ghost:hover{background:rgba(88,214,235,.14);box-shadow:0 0 22px rgba(88,214,235,.3)}
+  .btn.warn{border-color:rgba(227,179,65,.5);color:var(--yellow);background:rgba(227,179,65,.05)}
+  .btn.warn:hover{background:rgba(227,179,65,.14);box-shadow:0 0 22px rgba(227,179,65,.28)}
+  input[type=text]{
+    background:rgba(4,6,10,.85);border:1px solid rgba(88,214,235,.3);color:var(--green);
+    font:inherit;font-size:15px;padding:12px 15px;border-radius:10px;outline:none;
+    width:100%;max-width:400px;transition:.2s;letter-spacing:1px;
+  }
+  input[type=text]::placeholder{color:rgba(125,133,144,.7);font-size:13px}
+  input[type=text]:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(88,214,235,.12),0 0 24px rgba(88,214,235,.18)}
+  input[type=text].wrong{animation:shake .3s;border-color:var(--red)}
+  @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:20px}
+  /* 题目 */
+  .qhead{display:flex;align-items:center;gap:12px;margin:22px 0 10px;flex-wrap:wrap}
+  .qindex{
+    font-size:11px;color:var(--cyan);border:1px solid rgba(88,214,235,.35);
+    padding:3px 9px;border-radius:20px;letter-spacing:1px;
+  }
+  .qtext{font-size:clamp(16px,2vw,20px);line-height:1.7;color:#e6edf3;max-width:70ch}
+  .mono-block{
+    position:relative;margin:16px 0;padding:18px 20px;border-radius:12px;
+    background:rgba(0,0,0,.55);border:1px solid rgba(227,179,65,.28);
+    color:var(--yellow);font-size:clamp(18px,2.6vw,26px);letter-spacing:4px;
+    word-break:break-all;box-shadow:inset 0 0 40px rgba(227,179,65,.05);
+  }
+  .mono-block .tiny{font-size:11px;letter-spacing:1px;color:var(--dim);display:block;margin-bottom:8px}
+  .mono-block.b64{color:var(--cyan);border-color:rgba(88,214,235,.28);font-size:clamp(15px,2vw,20px)}
+  .opts{display:grid;gap:10px;margin:16px 0;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .opt{
+    position:relative;text-align:left;background:rgba(4,6,10,.7);border:1px solid rgba(88,214,235,.18);
+    color:var(--text);font:inherit;font-size:14px;padding:14px 16px 14px 48px;border-radius:10px;
+    cursor:pointer;transition:.15s;line-height:1.5;
+  }
+  .opt .key{
+    position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    width:22px;height:22px;border:1px solid rgba(88,214,235,.3);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--cyan);
+  }
+  .opt:hover{border-color:var(--cyan);background:rgba(88,214,235,.08);transform:translateX(3px)}
+  .opt.right{border-color:var(--green);background:rgba(57,211,83,.12);color:var(--green)}
+  .opt.right .key{border-color:var(--green);color:var(--green)}
+  .opt.wrong{border-color:var(--red);color:var(--red);animation:shake .3s}
+  .opt.wrong .key{border-color:var(--red);color:var(--red)}
+  .feedback{min-height:22px;margin:10px 0;font-size:13px;letter-spacing:.5px}
+  .feedback.ok{color:var(--green)}
+  .feedback.bad{color:var(--red)}
+  .knowledge{
+    margin:14px 0;padding:14px 16px;border-left:2px solid var(--cyan);border-radius:0 10px 10px 0;
+    background:linear-gradient(90deg,rgba(88,214,235,.10),rgba(88,214,235,.02));
+    font-size:13px;line-height:1.9;color:var(--text);
+  }
+  .knowledge b{color:var(--cyan);font-weight:400}
+  .tip{font-size:11px;color:var(--dim);line-height:1.8;margin-top:10px}
+  .tip b{color:var(--yellow);font-weight:400}
+  /* 进度条 */
+  .prog{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin:6px 0 18px;max-width:520px}
+  .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .6s}
+  /* 碎片浮标 */
+  .frag-glyph{
+    position:fixed;z-index:70;width:58px;height:58px;border-radius:50%;
+    border:1px solid rgba(57,211,83,.65);background:radial-gradient(circle,rgba(57,211,83,.22),rgba(4,6,10,.9));
+    color:var(--green);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 26px rgba(57,211,83,.55);animation:glyphfloat 4s ease-in-out infinite;
+  }
+  .frag-glyph::after{
+    content:"FRAG";position:absolute;bottom:-18px;font-size:8px;letter-spacing:2px;color:var(--cyan);
+  }
+  @keyframes glyphfloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-14px) rotate(3deg)}}
+  .frag-glyph:hover{transform:scale(1.15);box-shadow:0 0 40px rgba(57,211,83,.8)}
+  /* 吐司 */
+  .toast-wrap{position:fixed;top:74px;left:50%;transform:translateX(-50%);z-index:9500;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .toast{
+    padding:10px 20px;border-radius:20px;font-size:13px;letter-spacing:1px;
+    background:rgba(57,211,83,.12);border:1px solid var(--green);color:var(--green);
+    box-shadow:0 0 30px rgba(57,211,83,.3);animation:toastin .3s ease-out;
+  }
+  .toast.bad{border-color:var(--red);color:var(--red);background:rgba(248,81,73,.12);box-shadow:0 0 30px rgba(248,81,73,.3)}
+  @keyframes toastin{from{opacity:0;transform:translateY(-10px)}to{opacity:1}}
+  /* ============ 底栏 ============ */
+  .ticker{
+    position:fixed;bottom:0;left:0;right:0;height:34px;z-index:60;
+    display:flex;align-items:center;gap:10px;padding:0 16px;overflow:hidden;
+    background:rgba(4,6,10,.92);border-top:1px solid rgba(88,214,235,.14);
+    font-size:11px;color:rgba(125,133,144,.9);letter-spacing:.5px;
+  }
+  .ticker .dotled{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.4s steps(1) infinite;flex:none}
+  .ticker span{white-space:nowrap;animation:tickermove 30s linear infinite}
+  @keyframes tickermove{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  /* ============ 结局 ============ */
+  .blessing{
+    font-size:clamp(19px,3.4vw,34px);line-height:1.9;letter-spacing:3px;color:var(--green);
+    text-shadow:0 0 30px rgba(57,211,83,.55);text-align:center;margin:26px 0;
+  }
+  .rank-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:22px 0}
+  .rank-card{border:1px solid rgba(88,214,235,.2);border-radius:12px;padding:16px;text-align:center;background:rgba(4,6,10,.6)}
+  .rank-card .lab{font-size:11px;color:var(--dim);letter-spacing:2px}
+  .rank-card .val{font-size:30px;color:var(--yellow);margin-top:6px;text-shadow:0 0 18px rgba(227,179,65,.4)}
+  table.lb{width:100%;border-collapse:collapse;font-size:12px;margin-top:14px}
+  table.lb th,table.lb td{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(88,214,235,.12)}
+  table.lb th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:1px}
+  table.lb tr.me{color:var(--green)}
+  #confetti{position:fixed;inset:0;z-index:9800;pointer-events:none}
+  /* ============ 混乱动画 ============ */
+  #chaos{position:fixed;inset:0;z-index:9000;pointer-events:none;overflow:hidden}
+  .chaos-dim{position:fixed;inset:0;background:rgba(0,0,0,.55);pointer-events:auto;animation:fadein .2s}
+  @keyframes fadein{from{opacity:0}}
+  #app{transition:filter .25s,transform .25s}
+  #app.frozen{filter:grayscale(1) blur(1.4px) contrast(.8);transform:scale(.995);pointer-events:none}
+  .freeze-dialog{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,88vw);
+    background:#161b22;border:1px solid rgba(88,214,235,.4);border-radius:12px;padding:22px;
+    pointer-events:auto;box-shadow:0 30px 80px rgba(0,0,0,.8);z-index:9100;text-align:center;
+  }
+  .freeze-dialog .spin{
+    width:26px;height:26px;border:2px solid rgba(88,214,235,.2);border-top-color:var(--cyan);
+    border-radius:50%;margin:12px auto;animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .bsod{
+    position:fixed;inset:0;background:#0a6ed1;color:#fff;z-index:9200;pointer-events:auto;
+    padding:clamp(24px,8vw,120px);font-family:"Cascadia Code",Consolas,monospace;display:flex;flex-direction:column;justify-content:center;
+  }
+  .bsod .face{font-size:clamp(60px,12vw,120px);line-height:1;margin-bottom:18px}
+  .bsod h2{font-size:clamp(20px,3vw,34px);font-weight:400;margin-bottom:18px;line-height:1.4}
+  .bsod p{font-size:13px;line-height:2;opacity:.94;max-width:80ch}
+  .bsod .qr{width:86px;height:86px;background:
+    repeating-conic-gradient(#fff 0 25%,#0a6ed1 0 50%) 0 0/12px 12px;
+    margin:20px 0;border:6px solid #fff}
+  .bsod .pct{font-size:15px;margin-top:12px}
+  .kernel{
+    position:fixed;inset:0;background:#000;color:#9be39b;z-index:9200;pointer-events:auto;
+    padding:22px;font-size:12px;line-height:1.9;overflow:hidden;white-space:pre-wrap;
+  }
+  .kernel .bar{position:absolute;bottom:0;left:0;right:0;height:26px;background:#111;color:#666;display:flex;align-items:center;padding:0 12px;font-size:11px}
+  .virus-popup{
+    position:fixed;width:min(360px,86vw);z-index:9300;pointer-events:auto;
+    background:#c0c0c0;color:#111;border:2px solid #fff;border-right-color:#404040;border-bottom-color:#404040;
+    box-shadow:6px 6px 0 rgba(0,0,0,.45);font-family:"Microsoft YaHei","MS Sans Serif",sans-serif;font-size:13px;
+    animation:popin .16s ease-out;
+  }
+  @keyframes popin{from{transform:scale(.85);opacity:0}}
+  .virus-popup .vp-title{
+    display:flex;align-items:center;justify-content:space-between;padding:4px 6px;
+    background:linear-gradient(90deg,#000080,#1084d0);color:#fff;font-size:12px;font-weight:600;
+  }
+  .virus-popup .vp-x{
+    width:18px;height:16px;background:#c0c0c0;border:1px solid #fff;border-right-color:#404040;border-bottom-color:#404040;
+    color:#111;font-size:10px;cursor:pointer;line-height:1;
+  }
+  .virus-popup .vp-body{padding:18px 16px;display:flex;gap:12px;align-items:flex-start;line-height:1.7}
+  .virus-popup .vp-icon{font-size:28px;line-height:1}
+  .virus-popup .vp-actions{display:flex;gap:8px;justify-content:center;padding:0 14px 14px}
+  .virus-popup .vp-actions button{
+    min-width:76px;padding:5px 12px;background:#c0c0c0;border:2px solid #fff;
+    border-right-color:#404040;border-bottom-color:#404040;font:inherit;font-size:12px;cursor:pointer;color:#111;
+  }
+  .virus-popup .vp-actions button:active{border-color:#404040 #fff #fff #404040}
+  .av-win{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(540px,92vw);
+    background:#0b1014;border:1px solid rgba(57,211,83,.5);border-radius:12px;padding:18px 20px;
+    z-index:9350;pointer-events:auto;box-shadow:0 30px 90px rgba(0,0,0,.85),0 0 40px rgba(57,211,83,.15);
+    animation:popin .18s ease-out;
+  }
+  .av-win .av-title{display:flex;align-items:center;justify-content:space-between;color:var(--green);font-size:13px;letter-spacing:1px}
+  .av-win .av-bar{height:10px;background:#05070a;border:1px solid rgba(57,211,83,.25);border-radius:6px;overflow:hidden;margin:14px 0}
+  .av-win .av-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .35s}
+  .av-win .av-log{font-size:12px;color:var(--dim);line-height:1.9;min-height:48px;letter-spacing:.5px}
+  .mojibake-veil{position:fixed;inset:0;z-index:9400;pointer-events:none;display:flex;align-items:center;justify-content:center;
+    color:rgba(57,211,83,.14);font-size:clamp(20px,4vw,44px);letter-spacing:8px;overflow:hidden}
+  /* 响应式 */
+  @media(max-width:1180px){
+    .app{grid-template-columns:minmax(0,1fr);padding:72px 12px 42px}
+    .rail{display:none}
+  }
+  @media(max-width:640px){
+    .stats .hide-s{display:none}
+    .brand span{display:none}
+    .opts{grid-template-columns:1fr}
+    .panel{padding:22px 16px;border-radius:14px}
+  }
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div class="scanlines"></div>
+
+<header class="topbar">
+  <div class="brand">KU&#x014A;KA<span>//1024</span><i class="cursorline"></i></div>
+  <div class="stats">
+    <span>侦探 <b id="s-name">--</b></span>
+    <span class="hide-s">用时 <b id="s-time">00:00</b></span>
+    <span>碎片 <b id="s-frag">0/6</b></span>
+    <span class="rank">预计排名 <b id="s-rank">--</b></span>
+  </div>
+  <div class="top-right">
+    <button class="btn ghost small" id="radar-btn">碎片雷达</button>
+    <button class="btn ghost small" id="decode-btn">解码器</button>
+  </div>
+</header>
+
+<div class="app">
+  <nav class="rail left" id="rail"></nav>
+  <main class="stage"><section class="panel" id="screen"></section></main>
+  <aside class="rail frag-dock" id="dock"></aside>
+</div>
+
+<footer class="ticker">
+  <i class="dotled"></i>
+  <span id="ticker-text"></span>
+</footer>
+
+<div id="chaos"></div>
+<div class="toast-wrap" id="toast-wrap"></div>
+<canvas id="confetti"></canvas>
+
+<!-- ============================================================
+     碎片信号 FRAG-2 (Base64 / UTF-8)：6Lqr5L2T5YGl5bq377yM
+     ============================================================ -->
+<div id="frag-4-vault" style="display:none">，钱有里兜</div>
+<div id="ascii-vault" style="display:none">
+  ASCII-VAULT :: 0x31=49='1', 0x30=48='0', 0x32=50='2', 0x34=52='4',
+  0x54=84='T', 0x52=82='R', 0x41=65='A', 0x45=69='E'
+</div>
+<!-- FRAG-6 的明文藏在样式表规则里：Inspector → Styles → #ghost-frag-6::after -->
+
+<style>
+  /* 乱码病毒留下的残余规则，别急着删 */
+  #ghost-frag-6::after{content:"节日快乐！"}
+</style>
+<div id="ghost-frag-6" style="display:none"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   基础工具
+   ============================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const canon = s => String(s || "").replace(/\s+/g, "").replace(/，/g, ",").replace(/！/g, "!").toLowerCase();
+const b64 = s => btoa(unescape(encodeURIComponent(s)));
+
+const FRAGMENTS = ["祝大家", "身体健康，", "开开心心，", "兜里有钱，", "不再加班，", "节日快乐！"];
+const HINTS = [
+  "第 1 关：答对第一题后，屏幕上会飘过一个发光的汉字，点它。",
+  "第 2 关：右键「查看网页源代码」，搜索 FRAG-2，它是一段 Base64。",
+  "第 3 关：F12 → Console，日志里有一串十六进制码点（5F00 这种）。",
+  "第 4 关：F12 → Elements，找到 id 为 frag-4-vault 的隐藏元素，内容被倒着写。",
+  "第 5 关：F12 → Application → Local Storage，键名 kun_frag_5，值是一段 Base64。",
+  "第 6 关：F12 → Elements → Styles，查看 #ghost-frag-6 的 ::after 规则。"
+];
+
+/* ============================================================
+   状态
+   ============================================================ */
+const SAVE_KEY = "kun_save_v2";
+const BOARD_KEY = "kun_board_v2";
+let state = null;
+let clockId = null;
+
+const freshState = name => ({
+  name, level: 0, fragments: new Array(6).fill(null),
+  startTime: Date.now(), elapsedBefore: 0
+});
+function elapsed() {
+  if (!state) return 0;
+  return Math.floor(state.elapsedBefore + (Date.now() - state.startTime) / 1000);
+}
+function save() {
+  if (!state) return;
+  state.elapsedBefore = elapsed();
+  state.startTime = Date.now(); // 重置起点，避免重复累计
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && Array.isArray(s.fragments) && s.level >= 0 && s.level <= 6) return s;
+  } catch (e) { /* 存档损坏，静默重来 */ }
+  return null;
+}
+function startClock() {
+  clearInterval(clockId);
+  if (!state) return;
+  state.startTime = Date.now();
+  clockId = setInterval(refreshHud, 1000);
+}
+function refreshHud() {
+  if (!state) return;
+  const n = state.fragments.filter(Boolean).length;
+  $("#s-name").textContent = state.name;
+  $("#s-time").textContent = fmt(elapsed());
+  $("#s-frag").textContent = `${n}/6`;
+  $("#s-rank").textContent = `#${previewRank(elapsed())}`;
+  renderRail();
+  renderDock();
+}
+function previewRank(t) {
+  // 模拟全服：进度越满、耗时越短排名越前（上限 1024）
+  const done = state.fragments.filter(Boolean).length;
+  const base = 1024 - done * 150;
+  const speedBonus = Math.max(0, Math.floor((900 - t) / 900 * 120));
+  return Math.max(1, Math.min(1024, base - speedBonus));
+}
+function renderRail() {
+  const rail = $("#rail");
+  if (!rail || !state) return;
+  rail.innerHTML = Array.from({ length: 6 }, (_, i) => {
+    const done = !!state.fragments[i];
+    const now = state.level === i;
+    return `<div class="lv-node ${done ? "done" : ""} ${now ? "now" : ""}">
+      <div class="dotbox">${done ? "✓" : String(i + 1).padStart(2, "0")}</div>
+    </div>${i < 5 ? '<div class="lv-line"></div>' : ""}`;
+  }).join("");
+}
+function renderDock() {
+  const dock = $("#dock");
+  if (!dock || !state) return;
+  dock.innerHTML = `<div class="dock-title">FRAGMENTS</div>` +
+    FRAGMENTS.map((f, i) => `<div class="frag-slot ${state.fragments[i] ? "got" : ""}">
+      <span class="idx">${String(i + 1).padStart(2, "0")}</span>
+      <span>${state.fragments[i] ? esc(f) : "???"}</span>
+    </div>`).join("");
+}
+
+/* 吐司 */
+function toast(msg, bad) {
+  const w = $("#toast-wrap");
+  const el = document.createElement("div");
+  el.className = "toast" + (bad ? " bad" : "");
+  el.textContent = msg;
+  w.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+/* ============================================================
+   碎片回收
+   ============================================================ */
+function claimFragment(text) {
+  const i = FRAGMENTS.findIndex((f, idx) => !state.fragments[idx] && canon(f) === canon(text));
+  if (i < 0) return -1;
+  state.fragments[i] = FRAGMENTS[i];
+  save();
+  refreshHud();
+  const slot = $$(".frag-slot")[i];
+  if (slot) { slot.classList.add("pulse"); setTimeout(() => slot.classList.remove("pulse"), 1100); }
+  toast(`碎片 #${i + 1} 已回收：${FRAGMENTS[i]}`);
+  return i;
+}
+function spawnGlyph(char, fragIndex) {
+  if (state.fragments[fragIndex]) return;
+  const g = document.createElement("button");
+  g.className = "frag-glyph";
+  g.textContent = char;
+  g.style.left = rand(30, Math.max(40, innerWidth - 110)) + "px";
+  g.style.top = rand(150, Math.max(180, innerHeight - 180)) + "px";
+  g.onclick = () => {
+    claimFragment(FRAGMENTS[fragIndex]);
+    g.remove();
+  };
+  document.body.appendChild(g);
+}
+
+/* ============================================================
+   关卡框架
+   ============================================================ */
+function panel(inner, level) {
+  $("#screen").innerHTML = inner + `<div class="watermark">${String(level + 1).padStart(2, "0")}</div>`;
+  $("#screen").scrollTop = 0;
+}
+function levelHeader(n, name, desc) {
+  const done = state.fragments.filter(Boolean).length;
+  return `
+    <div class="kicker">LEVEL ${String(n).padStart(2, "0")} / 06 · ${name}</div>
+    <h1 class="hero" style="font-size:clamp(26px,4.6vw,52px)"><span class="hero-glitch" data-t="${desc}">${desc}</span></h1>
+    <div class="prog"><i style="width:${done / 6 * 100}%"></i></div>`;
+}
+function fragBar() {
+  return `<div class="tip" style="margin-top:22px">碎片信号：${
+    FRAGMENTS.map((f, i) => state.fragments[i]
+      ? `<b style="color:var(--green)">[${i + 1}]${esc(f)}</b>`
+      : `<span style="color:rgba(125,133,144,.8)">[${i + 1}]</span>`).join(" ")
+  }</div>`;
+}
+
+/* 关卡收尾：碎片未回收则不能前进 */
+function levelComplete(idx, nextFn) {
+  const got = !!state.fragments[idx];
+  panel(`
+    ${levelHeader(idx + 1, "SECTION CLEARED", "本关编码已修复")}
+    <div class="lead" style="margin-top:20px">
+      ${got
+        ? `碎片 <span class="hl">#${idx + 1}「${esc(FRAGMENTS[idx])}」</span> 已经在你手上，前路重新通畅。`
+        : `但是……这一关的字符碎片<span class="bad">还游离在外面</span>。不回收它，解码核心无法启动。`}
+    </div>
+    ${got ? "" : `
+      <div class="knowledge"><b>信号定位：</b>${HINTS[idx]}</div>
+      <div class="row">
+        <input type="text" id="frag-input" placeholder="输入你解码出的碎片文本">
+        <button class="btn small" id="frag-claim">回收碎片</button>
+      </div>
+      <div class="feedback" id="frag-fb"></div>`}
+    <div class="row">
+      <button class="btn" id="next-btn" ${got ? "" : "disabled"}>进入下一关 →</button>
+      <button class="btn ghost small" id="radar-btn2">打开碎片雷达</button>
+    </div>
+    ${fragBar()}
+  `, idx);
+  const claim = () => {
+    const v = $("#frag-input").value;
+    const r = claimFragment(v);
+    const fb = $("#frag-fb");
+    if (r === idx) {
+      fb.className = "feedback ok"; fb.textContent = "信号锁定，碎片已回收。";
+      setTimeout(() => levelComplete(idx, nextFn), 700);
+    } else {
+      fb.className = "feedback bad"; fb.textContent = "解码结果不匹配，或这块碎片已经回收过了。";
+    }
+  };
+  if (!got) {
+    $("#frag-claim").onclick = claim;
+    $("#frag-input").onkeydown = e => { if (e.key === "Enter") claim(); };
+  }
+  $("#next-btn").onclick = () => {
+    state.level = idx + 1;
+    save();
+    clearGlyphs();
+    nextFn();
+  };
+  $("#radar-btn2").onclick = openRadar;
+}
+function clearGlyphs() { $$(".frag-glyph").forEach(g => g.remove()); }
+
+/* ============================================================
+   第 1 关：乱码收容所
+   ============================================================ */
+function level1() {
+  const qs = [
+    { m: "娴嬭瘯鏂囨湰", a: "测试文本", why: "「测试文本」的 UTF-8 字节被 GBK 解读，一个汉字 3 字节挤进 2 字节的格子，就成了这样。" },
+    { m: "浣犲ソ", a: "你好", why: "「你好」的 UTF-8 字节被按 GBK 读取。乱码不是加密，它只是被念错了。" },
+    { m: "绋嬪簭", a: "程序", why: "「程序」经 UTF-8 → GBK 误读后的经典产物。看到它，DNA 会动一下。" }
+  ];
+  let i = 0;
+  const draw = () => {
+    const q = qs[i];
+    panel(`
+      ${levelHeader(1, "MOJIBAKE SHELTER", "乱码收容所")}
+      <div class="qhead"><span class="qindex">第 ${i + 1} / 3 段</span><span class="muted">这段乱码原本是什么？</span></div>
+      <div class="mono-block"><span class="tiny">raw bytes decoded as GBK</span>${esc(q.m)}</div>
+      <div class="row">
+        <input type="text" id="ans" placeholder="输入原文（不带标点）" autocomplete="off">
+        <button class="btn small" id="ok">修复编码</button>
+        <button class="btn warn small" id="hint">提示</button>
+      </div>
+      <div class="feedback" id="fb"></div>
+      <div class="knowledge" id="know" style="display:none"></div>
+      <div class="tip">乱码世界里，有些字符会自己掉出来。<b>多看一眼屏幕四周。</b></div>
+      ${fragBar()}
+    `, 0);
+    $("#ans").focus();
+    const submit = () => {
+      if (canon($("#ans").value) === canon(q.a)) {
+        $("#fb").className = "feedback ok"; $("#fb").textContent = "修复成功，乱码散去。";
+        const k = $("#know"); k.style.display = "block";
+        k.innerHTML = `<b>出生证明：</b>${q.why}`;
+        if (i === 0) spawnGlyph("祝", 0);
+        setTimeout(() => {
+          i++;
+          if (i < qs.length) draw();
+          else levelComplete(0, level2);
+        }, 1800);
+      } else {
+        $("#fb").className = "feedback bad"; $("#fb").textContent = "不对，它还在嘲笑你。";
+        $("#ans").classList.add("wrong");
+        setTimeout(() => $("#ans").classList.remove("wrong"), 350);
+      }
+    };
+    $("#ok").onclick = submit;
+    $("#ans").onkeydown = e => { if (e.key === "Enter") submit(); };
+    $("#hint").onclick = () => {
+      $("#fb").className = "feedback";
+      $("#fb").textContent = "这是 UTF-8 字节被 GBK 误读的产物，原文是日常最常见的四个字或两个字。";
+    };
+  };
+  draw();
+}
+
+/* ============================================================
+   第 2 关：二进制密道
+   ============================================================ */
+function level2() {
+  const qs = [
+    { b: "0000 0100 0000 0000", o: ["512", "1024", "2048", "4096"], r: 1, why: "2^10 = 1024。程序员节就是从这个数字来的。" },
+    { b: "1111 1111", o: ["128", "255", "256", "512"], r: 1, why: "8 个 1 = 2^8 − 1 = 255，一个字节能表示的最大无符号整数。" },
+    { b: "0000 0011 1111 0101", o: ["1000", "1010", "1020", "以上都不是"], r: 3, why: "它等于 1013（512+256+128+64+32+16+4+1）。页面上没有这个选项——答案在源码注释里。你翻过源代码了，对吧？" }
+  ];
+  let i = 0;
+  const draw = () => {
+    const q = qs[i];
+    panel(`
+      ${levelHeader(2, "BINARY CORRIDOR", "二进制密道")}
+      <div class="qhead"><span class="qindex">第 ${i + 1} / 3 题</span><span class="muted">这串二进制等于十进制的多少？</span></div>
+      <div class="mono-block"><span class="tiny">base-2 stream</span>${esc(q.b)}</div>
+      <div class="opts">${q.o.map((o, k) => `<button class="opt" data-k="${k}"><span class="key">${String.fromCharCode(65 + k)}</span>${esc(o)}</button>`).join("")}</div>
+      <div class="feedback" id="fb"></div>
+      <div class="knowledge" id="know" style="display:none"></div>
+      <div class="tip">${i === 2 ? "这题有点怪。真正的侦探会右键 → <b>查看网页源代码</b>。" : ""}</div>
+      ${fragBar()}
+    `, 1);
+    $$(".opt").forEach(btn => btn.onclick = () => {
+      const k = Number(btn.dataset.k);
+      if (k === q.r) {
+        btn.classList.add("right");
+        $("#fb").className = "feedback ok"; $("#fb").textContent = "正确。";
+        const kn = $("#know"); kn.style.display = "block"; kn.innerHTML = `<b>进制课堂：</b>${q.why}`;
+        setTimeout(() => {
+          i++;
+          i < qs.length ? draw() : levelComplete(1, level3);
+        }, 1900);
+      } else {
+        btn.classList.add("wrong");
+        $("#fb").className = "feedback bad"; $("#fb").textContent = "不对，再算一遍每一位的权值。";
+        setTimeout(() => btn.classList.remove("wrong"), 350);
+      }
+    });
+  };
+  draw();
+}
+
+/* ============================================================
+   第 3 关：知识防火墙
+   ============================================================ */
+function level3() {
+  scheduleLevelChaos(2, "virus", 2200);
+  const qs = [
+    { q: "世界上第一个计算机「bug」是什么？", o: ["一行写错的代码", "一只飞蛾", "一根烧断的电线", "一杯打翻的咖啡"], r: 1, why: "1947 年，Grace Hopper 的团队在 Harvard Mark II 里发现一只飞蛾，把它贴进了日志。" },
+    { q: "「图灵测试」用来判断什么？", o: ["CPU 跑分是否达标", "机器能否表现出与人难以区分的智能", "网络延迟是否稳定", "代码有没有注释"], r: 1, why: "图灵在 1950 年提出：评判者无法分辨对话方是人还是机器，机器就算通过。" },
+    { q: "1 KB 等于多少字节？", o: ["1000", "1001", "1024", "2048"], r: 2, why: "2^10 = 1024。二进制世界的「整数」。" },
+    { q: "AI 的三要素是什么？", o: ["数据、算法、算力", "数据、网络、电力", "模型、显卡、电费", "输入、处理、输出"], r: 0, why: "数据喂饱模型，算法决定上限，算力撑住训练。" },
+    { q: "Git 最初是谁动手写出来的？", o: ["Guido van Rossum", "Linus Torvalds", "Dennis Ritchie", "Brendan Eich"], r: 1, why: "2005 年，Linus 与 BitKeeper 闹掰后，自己动手写了 Git 的雏形。" }
+  ];
+  let i = 0;
+  const draw = () => {
+    const q = qs[i];
+    panel(`
+      ${levelHeader(3, "KNOWLEDGE FIREWALL", "知识防火墙")}
+      <div class="qhead"><span class="qindex">第 ${i + 1} / 5 题</span></div>
+      <div class="qtext">${esc(q.q)}</div>
+      <div class="opts">${q.o.map((o, k) => `<button class="opt" data-k="${k}"><span class="key">${String.fromCharCode(65 + k)}</span>${esc(o)}</button>`).join("")}</div>
+      <div class="feedback" id="fb"></div>
+      <div class="knowledge" id="know" style="display:none"></div>
+      <div class="tip">${i === 3 ? "病毒的日志还没清干净。<b>F12 → Console</b> 看看。" : ""}</div>
+      ${fragBar()}
+    `, 2);
+    $$(".opt").forEach(btn => btn.onclick = () => {
+      const k = Number(btn.dataset.k);
+      if (k === q.r) {
+        btn.classList.add("right");
+        $("#fb").className = "feedback ok"; $("#fb").textContent = "正确，防火墙让开了。";
+        const kn = $("#know"); kn.style.display = "block"; kn.innerHTML = `<b>冷知识：</b>${q.why}`;
+        setTimeout(() => {
+          i++;
+          i < qs.length ? draw() : levelComplete(2, level4);
+        }, 1800);
+      } else {
+        btn.classList.add("wrong");
+        $("#fb").className = "feedback bad"; $("#fb").textContent = "错误，你被防火墙弹了回去。";
+        setTimeout(() => btn.classList.remove("wrong"), 350);
+      }
+    });
+  };
+  draw();
+}
+
+/* ============================================================
+   第 4 关：十六进制迷宫
+   ============================================================ */
+function level4() {
+  scheduleLevelChaos(3, "mojibake", 2400);
+  const qs = [
+    { hex: "54 52 41 45", a: "trae", show: "TRAE", why: "0x54='T'，0x52='R'，0x41='A'，0x45='E'。就是你现在用的这个家。" },
+    { hex: "31 30 32 34", a: "1024", show: "1024", why: "0x31='1'，0x30='0'，0x32='2'，0x34='4'。数字在 ASCII 里也有自己的身体。" }
+  ];
+  let i = 0;
+  const draw = () => {
+    const q = qs[i];
+    panel(`
+      ${levelHeader(4, "HEX MAZE", "十六进制迷宫")}
+      <div class="qhead"><span class="qindex">第 ${i + 1} / 2 题</span><span class="muted">这些 ASCII 十六进制字节拼出来是什么？</span></div>
+      <div class="mono-block"><span class="tiny">hex bytes → decimal → ascii</span>${esc(q.hex)}</div>
+      <div class="row">
+        <input type="text" id="ans" placeholder="输入解码结果" autocomplete="off">
+        <button class="btn small" id="ok">解码</button>
+        <button class="btn warn small" id="hint">提示</button>
+      </div>
+      <div class="feedback" id="fb"></div>
+      <div class="knowledge" id="know" style="display:none"></div>
+      <div class="tip">ASCII 对照表也被病毒藏了。<b>F12 → Elements</b>，找看不见的 DOM。</div>
+      ${fragBar()}
+    `, 3);
+    $("#ans").focus();
+    const submit = () => {
+      if (canon($("#ans").value) === canon(q.a)) {
+        $("#fb").className = "feedback ok"; $("#fb").textContent = `解码成功：${q.show}`;
+        const kn = $("#know"); kn.style.display = "block"; kn.innerHTML = `<b>解码笔记：</b>${q.why}`;
+        setTimeout(() => {
+          i++;
+          i < qs.length ? draw() : levelComplete(3, level5);
+        }, 1900);
+      } else {
+        $("#fb").className = "feedback bad"; $("#fb").textContent = "结果不对，检查转换步骤。";
+        $("#ans").classList.add("wrong");
+        setTimeout(() => $("#ans").classList.remove("wrong"), 350);
+      }
+    };
+    $("#ok").onclick = submit;
+    $("#ans").onkeydown = e => { if (e.key === "Enter") submit(); };
+    $("#hint").onclick = () => {
+      $("#fb").className = "feedback";
+      $("#fb").textContent = "两步：先把每个十六进制字节转十进制，再按 ASCII 查字符。对照表就在隐藏元素里。";
+    };
+  };
+  draw();
+}
+
+/* ============================================================
+   第 5 关：Base64 传送门
+   ============================================================ */
+function level5() {
+  scheduleLevelChaos(4, "bsod", 2600);
+  localStorage.setItem("kun_missing_piece", "xMDI0");
+  localStorage.setItem("kun_frag_5", "5LiN5YaN5Yqg54+t77yM"); // Base64("不再加班，")
+  panel(`
+    ${levelHeader(5, "BASE64 GATEWAY", "Base64 传送门")}
+    <div class="qtext" style="margin-top:18px">传送门的钥匙是一段 Base64，但末尾被<span style="color:var(--red)">锟斤拷之王吃掉了</span>：</div>
+    <div class="mono-block b64"><span class="tiny">base64 stream / incomplete</span>aGFwcHk<span style="color:var(--red)">锟斤拷</span></div>
+    <div class="qtext">找回缺失的部分，补全后解码，输入解码结果：</div>
+    <div class="row">
+      <input type="text" id="ans" placeholder="解码后的内容" autocomplete="off">
+      <button class="btn small" id="ok">开启传送门</button>
+      <button class="btn warn small" id="hint">提示</button>
+    </div>
+    <div class="feedback" id="fb"></div>
+    <div class="knowledge" id="know" style="display:none"></div>
+    <div class="tip">被吃掉的东西，病毒吞不下去，吐在了仓库里。<b>F12 → Application → Local Storage</b>。</div>
+    ${fragBar()}
+  `, 4);
+  $("#ans").focus();
+  $("#ok").onclick = () => {
+    if (canon($("#ans").value) === "happy1024") {
+      $("#fb").className = "feedback ok"; $("#fb").textContent = "传送门开启。";
+      const kn = $("#know"); kn.style.display = "block";
+      kn.innerHTML = `<b>解码笔记：</b>完整 Base64 是 <b>aGFwcHkxMDI0</b>，解码结果 <b>happy1024</b>。Base64 用 64 个可打印字符搬运任意二进制数据。`;
+      setTimeout(() => levelComplete(4, level6), 2400);
+    } else {
+      $("#fb").className = "feedback bad"; $("#fb").textContent = "传送门没有反应，补全和解码都对了吗？";
+      $("#ans").classList.add("wrong");
+      setTimeout(() => $("#ans").classList.remove("wrong"), 350);
+    }
+  };
+  $("#ans").onkeydown = e => { if (e.key === "Enter") $("#ok").click(); };
+  $("#hint").onclick = () => {
+    $("#fb").className = "feedback";
+    $("#fb").textContent = "Local Storage 里有个 kun_missing_piece 键。拼上它得到完整 Base64，再解码。";
+  };
+}
+
+/* ============================================================
+   第 6 关：锟斤拷之王
+   ============================================================ */
+function level6() {
+  scheduleLevelChaos(5, "antivirus", 1800);
+  const qs = [
+    { q: "二进制 0000 1010 = 十进制？", o: ["8", "10", "12", "1010"], r: 1 },
+    { q: "十六进制 FF = 十进制？", o: ["255", "256", "1616", "99"], r: 0 },
+    { q: "Base64「aGk=」解码后是？", o: ["hi", "ok", "ha", "ik"], r: 0 },
+    { q: "乱码「浣犲ソ」的原文是？", o: ["再见", "你好", "谢谢", "测试"], r: 1 },
+    { q: "为什么程序员节定在 1024？", o: ["某位大神生日", "2^10，二进制世界的整数", "随机抽的", "键盘第 1024 个键"], r: 1 },
+    { q: "「烫烫烫」通常来自哪里？", o: ["UTF-8 截断", "未初始化内存被 0xCC 填充", "Base64 解码失败", "硬盘过热"], r: 1 }
+  ];
+  let i = 0, hp = 100, left = 60, over = false;
+  const tick = setInterval(() => {
+    if (over) return;
+    left--;
+    const el = $("#boss-left");
+    if (el) el.textContent = left;
+    if (left <= 0) fail();
+  }, 1000);
+  const fail = () => {
+    over = true; clearInterval(tick);
+    panel(`
+      ${levelHeader(6, "FINAL BATTLE", "最终决战")}
+      <div class="boss" style="text-align:center;font-size:clamp(22px,4vw,38px);letter-spacing:8px;color:var(--red);text-shadow:0 0 26px rgba(248,81,73,.6)">锟 斤 拷 之 王</div>
+      <div class="lead" style="text-align:center;color:var(--red);margin:20px 0">时间耗尽，你被乱码吞没了。</div>
+      <div class="row" style="justify-content:center"><button class="btn" id="retry">重新挑战</button></div>
+    `, 5);
+    $("#retry").onclick = level6;
+  };
+  const draw = () => {
+    if (i >= qs.length) return win();
+    const q = qs[i];
+    panel(`
+      ${levelHeader(6, "FINAL BATTLE", "最终决战")}
+      <div style="text-align:center;font-size:clamp(20px,3.6vw,34px);letter-spacing:8px;color:var(--red);text-shadow:0 0 26px rgba(248,81,73,.6);margin:6px 0 12px">锟 斤 拷 之 王</div>
+      <div class="boss-hp" style="height:6px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${hp}%;background:linear-gradient(90deg,var(--red),var(--yellow));transition:width .4s"></div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin:10px 0">
+        <span style="color:var(--yellow)">剩余时间 <b id="boss-left">${left}</b>s</span>
+        <span class="qindex">第 ${i + 1} / ${qs.length} 击</span>
+      </div>
+      <div class="qtext">${esc(q.q)}</div>
+      <div class="opts">${q.o.map((o, k) => `<button class="opt" data-k="${k}"><span class="key">${String.fromCharCode(65 + k)}</span>${esc(o)}</button>`).join("")}</div>
+      <div class="feedback" id="fb"></div>
+    `, 5);
+    $$(".opt").forEach(btn => btn.onclick = () => {
+      if (over) return;
+      const k = Number(btn.dataset.k);
+      if (k === q.r) {
+        hp = Math.max(0, hp - Math.ceil(100 / qs.length));
+        i++;
+        draw();
+      } else {
+        btn.classList.add("wrong");
+        left = Math.max(0, left - 5);
+        $("#fb").className = "feedback bad"; $("#fb").textContent = "答错，−5 秒。";
+        setTimeout(() => btn.classList.remove("wrong"), 350);
+      }
+    });
+  };
+  const win = () => {
+    over = true; clearInterval(tick);
+    panel(`
+      ${levelHeader(6, "FINAL BATTLE", "最终决战")}
+      <div style="text-align:center;font-size:clamp(20px,3.6vw,34px);letter-spacing:8px;color:var(--green);text-shadow:0 0 26px rgba(57,211,83,.6);margin:20px 0">病 毒 已 净 化</div>
+      <div class="lead" style="text-align:center">锟斤拷之王碎成一地 U+FFFD，随风散去。</div>
+    `, 5);
+    setTimeout(() => levelComplete(5, finalScreen), 1600);
+  };
+  draw();
+}
+
+/* ============================================================
+   终局解码
+   ============================================================ */
+function finalScreen() {
+  clearInterval(clockId);
+  const missing = state.fragments.map((f, i) => f ? null : i).filter(i => i !== null);
+  if (missing.length) {
+    panel(`
+      ${levelHeader(6, "CORE OFFLINE", "解码核心未启动")}
+      <div class="lead" style="margin-top:18px">还缺 ${missing.length} 块碎片：<span class="bad">${missing.map(i => "#" + (i + 1)).join("、")}</span></div>
+      ${missing.map(i => `<div class="knowledge"><b>碎片 #${i + 1}：</b>${HINTS[i]}</div>`).join("")}
+      <div class="row"><button class="btn" id="back">返回继续寻找</button></div>
+    `, 5);
+    $("#back").onclick = () => {
+      state.level = Math.min(...missing);
+      save(); route();
+    };
+    return;
+  }
+  const total = elapsed();
+  const enc = [
+    { l: "FRAG-01 / plain", d: FRAGMENTS[0] },
+    { l: "FRAG-02 / base64", d: b64(FRAGMENTS[1]) },
+    { l: "FRAG-03 / unicode", d: [...FRAGMENTS[2]].map(c => "\\u" + c.codePointAt(0).toString(16)).join("") },
+    { l: "FRAG-04 / hex", d: [...FRAGMENTS[3]].map(c => c.codePointAt(0).toString(16).toUpperCase()).join(" ") },
+    { l: "FRAG-05 / plain", d: FRAGMENTS[4] },
+    { l: "FRAG-06 / unicode", d: [...FRAGMENTS[5]].map(c => "\\u" + c.codePointAt(0).toString(16)).join("") }
+  ];
+  panel(`
+    ${levelHeader(6, "DECODE CORE", "解码核心")}
+    <div class="lead" style="margin-top:16px">六块碎片全部归位。它们以不同编码存放，点击合成，把这座城市还回去。</div>
+    ${enc.map(e => `<div class="mono-block b64" style="font-size:13px;letter-spacing:1px"><span class="tiny">${e.l}</span>${esc(e.d)}</div>`).join("")}
+    <div class="row"><button class="btn" id="fuse">合成解码</button></div>
+    <div id="result"></div>
+  `, 6);
+  $("#fuse").onclick = () => {
+    const full = FRAGMENTS.join("");
+    const r = $("#result");
+    r.innerHTML = `<div class="blessing" id="typeout" style="min-height:2em"></div>`;
+    let n = 0;
+    const t = setInterval(() => {
+      n++;
+      $("#typeout").textContent = full.slice(0, n) + "▋";
+      if (n >= full.length) {
+        clearInterval(t);
+        const rank = submitScore(state.name, total);
+        r.innerHTML = `
+          <div class="blessing">${esc(full)}</div>
+          <div class="muted" style="text-align:center">Trae 城的乱码全部消散，1024 的星光重新亮起。</div>
+          <div class="rank-grid">
+            <div class="rank-card"><div class="lab">通关总用时</div><div class="val">${fmt(total)}</div></div>
+            <div class="rank-card"><div class="lab">全服排名 / 1024</div><div class="val">#${rank}</div></div>
+            <div class="rank-card"><div class="lab">碎片回收</div><div class="val">6/6</div></div>
+          </div>
+          <div class="row" style="justify-content:center">
+            <button class="btn" id="again">再玩一次</button>
+            <button class="btn ghost" id="board">查看榜单</button>
+          </div>`;
+        confetti();
+        localStorage.removeItem(SAVE_KEY);
+        $("#again").onclick = () => { state = null; $("#s-name").textContent = "--"; home(); };
+        $("#board").onclick = boardScreen;
+      }
+    }, 80);
+  };
+}
+
+/* ============================================================
+   排名（可替换为真实后端）
+   ============================================================ */
+function seeded(seed) { let t = seed; return () => { t = (t * 9301 + 49297) % 233280; return t / 233280; }; }
+const GLOBAL = (() => {
+  const rnd = seeded(1024), arr = [];
+  for (let i = 1; i <= 1023; i++) {
+    arr.push({ name: `码农_${String(i).padStart(4, "0")}`, time: Math.floor(150 + rnd() * rnd() * 1200), bot: true });
+  }
+  return arr;
+})();
+function localBoard() {
+  try { return JSON.parse(localStorage.getItem(BOARD_KEY)) || []; } catch (e) { return []; }
+}
+function submitScore(name, time) {
+  // 接真实后端时，把这里换成 fetch POST，保留返回排名即可
+  const board = localBoard();
+  board.push({ name, time, date: Date.now() });
+  board.sort((a, b) => a.time - b.time);
+  localStorage.setItem(BOARD_KEY, JSON.stringify(board.slice(0, 1024)));
+  const all = [...GLOBAL, { name, time, me: true }].sort((a, b) => a.time - b.time);
+  return all.findIndex(e => e.me) + 1;
+}
+function boardScreen() {
+  const b = localBoard();
+  panel(`
+    <div class="kicker">LOCAL LEADERBOARD</div>
+    <h1 class="hero" style="font-size:clamp(26px,4.4vw,46px)">本地榜单</h1>
+    <div class="muted">仅统计前 1024 名，按通关总用时升序。</div>
+    ${b.length ? `
+      <table class="lb">
+        <tr><th>#</th><th>侦探</th><th>用时</th><th>时间</th></tr>
+        ${b.slice(0, 20).map((e, i) => `<tr class="${i === 0 ? "me" : ""}">
+          <td>${i + 1}</td><td>${esc(e.name)}</td><td>${fmt(e.time)}</td>
+          <td>${new Date(e.date).toLocaleString("zh-CN")}</td></tr>`).join("")}
+      </table>` : `<div class="lead" style="margin-top:20px">还没有记录。先去通关一次。</div>`}
+    <div class="row"><button class="btn" id="back">返回首页</button></div>
+  `, 6);
+  $("#back").onclick = home;
+}
+
+/* ============================================================
+   首页 / 路由
+   ============================================================ */
+function home() {
+  clearInterval(clockId);
+  clearGlyphs();
+  const saved = loadSave();
+  panel(`
+    <div class="kicker">TRAE 1024 · INCIDENT REPORT</div>
+    <h1 class="hero">
+      <span class="hero-glitch" data-t="锟斤拷大冒险">锟斤拷大冒险</span><br>
+      <span class="stroke">解救 1024</span>
+    </h1>
+    <div class="lead" style="margin-top:24px">
+      <p>10 月 24 日凌晨，Trae 城的中央服务器被 <span class="bad">「乱码病毒」</span> 入侵。</p>
+      <p>所有文字都被污染成了 <span class="bad">锟斤拷</span>，城市陷入一片 </p>
+      <p>你是城里最后的 <span class="hl">编码侦探</span>。穿过 6 道关卡，修复编码，</p>
+      <p>并在一路故障动画里，捡回 6 块散落的字符碎片，解码那句能净化整座城市的祝福。</p>
+    </div>
+    <div class="knowledge" style="margin-top:22px">
+      <b>行动须知：</b>碎片不是通关奖励，它们藏在源码、控制台、样式表和本地存储里。
+      每关收尾会给你一条定位提示；真正的侦探，靠 F12 和右键「查看源代码」。
+    </div>
+    <div class="row">
+      <input type="text" id="nick" maxlength="12" placeholder="输入侦探代号" value="${saved ? esc(saved.name) : ""}">
+      <button class="btn" id="start">${saved ? "继续冒险" : "开始冒险"}</button>
+      ${saved ? `<button class="btn warn small" id="reset">重新开始</button>` : ""}
+    </div>
+    <div class="muted" style="margin-top:14px">排名按通关总用时计算，仅收录前 1024 名。进度自动保存在本地。</div>
+    <div class="tip">按下按钮之前，先记住：屏幕上出现的一切异常，都是 1024 的一部分。</div>
+  `, 0);
+  $("#start").onclick = () => {
+    const name = $("#nick").value.trim() || "无名侦探";
+    if (saved && saved.name === name) state = saved;
+    else state = freshState(name);
+    save();
+    startClock();
+    route();
+  };
+  if (saved) $("#reset").onclick = () => {
+    localStorage.removeItem(SAVE_KEY);
+    state = null;
+    home();
+  };
+}
+
+function route() {
+  renderRail(); renderDock(); refreshHud();
+  switch (state.level) {
+    case 0: level1(); break;
+    case 1: level2(); break;
+    case 2: level3(); break;
+    case 3: level4(); break;
+    case 4: level5(); break;
+    case 5: level6(); break;
+    default: finalScreen();
+  }
+}
+
+/* ============================================================
+   碎片雷达 / 解码器
+   ============================================================ */
+function openRadar() {
+  if (document.getElementById("radar-panel")) return;
+  const box = document.createElement("div");
+  box.id = "radar-panel";
+  box.className = "freeze-dialog";
+  box.style.cssText += "text-align:left;max-height:80vh;overflow:auto;z-index:9600";
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b style="color:var(--cyan);letter-spacing:2px">碎片雷达</b>
+      <button class="btn ghost small" id="radar-close">关闭</button>
+    </div>
+    ${FRAGMENTS.map((f, i) => `<div class="knowledge" style="margin:8px 0;${state.fragments[i] ? "border-color:var(--green);background:rgba(57,211,83,.06)" : ""}">
+      <b>${state.fragments[i] ? "已回收" : "未回收"} · #${i + 1}</b>：${HINTS[i]}
+    </div>`).join("")}
+  `;
+  $("#chaos").appendChild(box);
+  $("#radar-close").onclick = () => box.remove();
+}
+function openDecoder() {
+  if (document.getElementById("decoder-panel")) return;
+  const box = document.createElement("div");
+  box.id = "decoder-panel";
+  box.className = "freeze-dialog";
+  box.style.zIndex = 9600;
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b style="color:var(--cyan);letter-spacing:2px">碎片解码器</b>
+      <button class="btn ghost small" id="dec-close">关闭</button>
+    </div>
+    <div class="muted" style="margin-bottom:10px">把你解出的明文贴进来，自动匹配已发现的碎片。</div>
+    <input type="text" id="dec-input" placeholder="例如：身体健康，">
+    <div class="row"><button class="btn small" id="dec-go">回收</button></div>
+    <div class="feedback" id="dec-fb"></div>
+  `;
+  $("#chaos").appendChild(box);
+  $("#dec-close").onclick = () => box.remove();
+  $("#dec-input").focus();
+  const go = () => {
+    const r = claimFragment($("#dec-input").value);
+    const fb = $("#dec-fb");
+    if (r >= 0) { fb.className = "feedback ok"; fb.textContent = `已回收碎片 #${r + 1}`; $("#dec-input").value = ""; }
+    else { fb.className = "feedback bad"; fb.textContent = "没有匹配的碎片，或者它已经被你收下了。"; }
+  };
+  $("#dec-go").onclick = go;
+  $("#dec-input").onkeydown = e => { if (e.key === "Enter") go(); };
+}
+
+/* ============================================================
+   混乱动画模块
+   ============================================================ */
+const chaosLayer = $("#chaos");
+const Chaos = {
+  busy: false,
+  timer: null,
+  start() {
+    clearTimeout(this.timer);
+    this.schedule();
+  },
+  schedule() {
+    // 关卡越靠后，故障越密集
+    const lv = state ? state.level : 0;
+    const ranges = [
+      [15000, 26000], [13000, 22000], [10000, 17000],
+      [8500, 14000], [7000, 12000], [5500, 9500]
+    ];
+    const [a, b] = ranges[Math.min(lv, 5)];
+    this.timer = setTimeout(() => {
+      if (!document.hidden) this.fire();
+      this.schedule();
+    }, rand(a, b));
+  },
+  fire() {
+    if (this.busy || chaosLayer.children.length) return;
+    const lv = state ? state.level : 0;
+    const pool = lv >= 2
+      ? ["virus", "bsod", "virus", "freeze", "mojibake", "kernel", "antivirus", "virus"]
+      : ["bsod", "virus", "freeze", "mojibake", "kernel", "virus"];
+    const pick = pool[rand(0, pool.length - 1)];
+    this[pick]();
+  },
+  /* 假蓝屏 */
+  bsod() {
+    this.busy = true;
+    const el = document.createElement("div");
+    el.className = "bsod";
+    el.innerHTML = `
+      <div class="face">:(</div>
+      <h2>你的 1024 遇到了问题，需要重新启动。</h2>
+      <p>我们只收集了 1024 字节的错误信息，然后就会重新开始。</p>
+      <p style="margin-top:12px">停止代码：KUNKA_MOJIBAKE_FAILURE</p>
+      <div class="qr"></div>
+      <p>进度：<span id="bsod-pct">0</span>% 完成</p>
+    `;
+    chaosLayer.appendChild(el);
+    let p = 0;
+    const t = setInterval(() => {
+      p += rand(8, 26);
+      const s = $("#bsod-pct");
+      if (s) s.textContent = Math.min(100, p);
+    }, 240);
+    setTimeout(() => { clearInterval(t); el.remove(); this.busy = false; }, 2600);
+  },
+  /* 假病毒弹窗 */
+  virus() {
+    const texts = [
+      ["系统警告", "检测到 1024 个未修复的 bug。", "它们正在繁殖。"],
+      ["内存不足", "你的头发占用已超过 1 KB。", "继续加班将导致不可逆损耗。"],
+      ["可疑程序", "是否停止加班？", "（本对话框没有「否」按钮）"],
+      ["弹窗广告", "恭喜你获得一台新键盘，", "按键 W 已提前磨损。"],
+      ["安全中心", "锟斤拷试图读取你的剪贴板。", "已自动拒绝 0 次。"]
+    ];
+    const n = state && state.level >= 2 ? rand(2, 3) : rand(1, 2);
+    for (let k = 0; k < n; k++) {
+      const t = texts[rand(0, texts.length - 1)];
+      const el = document.createElement("div");
+      el.className = "virus-popup";
+      el.style.left = rand(6, Math.max(10, innerWidth - 380)) + "px";
+      el.style.top = rand(80, Math.max(120, innerHeight - 260)) + "px";
+      el.innerHTML = `
+        <div class="vp-title"><span>[!] ${t[0]}</span><button class="vp-x">x</button></div>
+        <div class="vp-body"><div class="vp-icon">!</div>
+          <div>${t[1]}<br><span style="color:#555">${t[2]}</span></div></div>
+        <div class="vp-actions"><button class="vp-ok">确定</button><button class="vp-later">稍后</button></div>
+      `;
+      el.querySelector(".vp-x").onclick = () => el.remove();
+      el.querySelector(".vp-ok").onclick = () => {
+        el.remove();
+        if (Math.random() > .45) {
+          const more = document.createElement("div");
+          more.className = "virus-popup";
+          more.style.left = rand(6, Math.max(10, innerWidth - 360)) + "px";
+          more.style.top = rand(80, Math.max(120, innerHeight - 240)) + "px";
+          more.innerHTML = `
+            <div class="vp-title"><span>[!] 系统警告</span><button class="vp-x">x</button></div>
+            <div class="vp-body"><div class="vp-icon">:)</div><div>你点了「确定」。<br><span style="color:#555">但协议条款里还有 1023 页。</span></div></div>
+            <div class="vp-actions"><button class="vp-ok">好的</button></div>`;
+          more.querySelector(".vp-x").onclick = () => more.remove();
+          more.querySelector(".vp-ok").onclick = () => more.remove();
+          chaosLayer.appendChild(more);
+        }
+      };
+      el.querySelector(".vp-later").onclick = () => el.remove();
+      chaosLayer.appendChild(el);
+      setTimeout(() => el.remove(), 9000);
+    }
+  },
+  /* 假杀毒软件全盘扫描 */
+  antivirus() {
+    this.busy = true;
+    const el = document.createElement("div");
+    el.className = "av-win";
+    el.innerHTML = `
+      <div class="av-title"><span>[ 安全卫士 1024 ] 正在扫描系统</span><button class="vp-x" id="av-x">x</button></div>
+      <div class="av-bar"><i id="av-bar" style="width:0%"></i></div>
+      <div class="av-log" id="av-log">正在加载病毒库 1024 KB ...</div>
+    `;
+    chaosLayer.appendChild(el);
+    const logs = [
+      "扫描 C:\\Users\\detective\\头发 ... 发现 256 个 bug",
+      "扫描 C:\\Program Files\\加班 ... 拒绝访问",
+      "扫描 内存 0x0000-0x0400 ... 烫烫烫",
+      "发现威胁：锟斤拷.exe（无法清除，它已读源码）",
+      "扫描完成：1024 个威胁，全部是未修复的 bug"
+    ];
+    let p = 0, li = 0;
+    const t = setInterval(() => {
+      p = Math.min(100, p + rand(9, 22));
+      const bar = $("#av-bar"), log = $("#av-log");
+      if (bar) bar.style.width = p + "%";
+      if (log && li < logs.length && p > li * 20) {
+        log.textContent = logs[li];
+        li++;
+      }
+      if (p >= 100) { clearInterval(t); }
+    }, 420);
+    const close = () => { clearInterval(t); el.remove(); this.busy = false; };
+    el.querySelector("#av-x").onclick = close;
+    setTimeout(close, 4600);
+  },
+  /* 假装卡死 */
+  freeze() {
+    this.busy = true;
+    $("#app").classList.add("frozen");
+    const el = document.createElement("div");
+    el.className = "freeze-dialog";
+    el.innerHTML = `
+      <div style="font-size:14px;color:var(--text)">trae-1024.exe 未响应</div>
+      <div class="spin"></div>
+      <div class="muted">程序正在等待一个永远不会到来的响应……</div>
+      <div class="row" style="justify-content:center">
+        <button class="btn small" id="cz-wait">等待程序响应</button>
+        <button class="btn warn small" id="cz-end">结束进程</button>
+      </div>
+    `;
+    chaosLayer.appendChild(el);
+    const end = () => {
+      $("#app").classList.remove("frozen");
+      el.remove();
+      this.busy = false;
+    };
+    el.querySelector("#cz-end").onclick = () => { end(); toast("进程已被你亲手结束。它松了一口气。"); };
+    el.querySelector("#cz-wait").onclick = () => {
+      el.querySelector(".muted").textContent = "还在等。它假装在思考人生。";
+      setTimeout(end, 1200);
+    };
+    setTimeout(end, 2600);
+  },
+  /* 乱码风暴 */
+  mojibake() {
+    const nodes = [];
+    const walker = document.createTreeWalker(document.getElementById("app"), NodeFilter.SHOW_TEXT, {
+      acceptNode(n) {
+        const p = n.parentElement;
+        if (!p) return NodeFilter.FILTER_REJECT;
+        if (p.closest("input,textarea,script,style,canvas,.no-mojibake")) return NodeFilter.FILTER_REJECT;
+        if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    while (walker.nextNode()) nodes.push([walker.currentNode, walker.currentNode.nodeValue]);
+    if (!nodes.length) return;
+    const junk = ["锟斤拷", "烫烫烫", "屯屯屯", "\uFFFD", "锘匡拷", "??"];
+    nodes.forEach(([n, v]) => {
+      n.nodeValue = [...v].map(ch => (ch.trim() ? junk[rand(0, junk.length - 1)] : ch)).join("");
+    });
+    const veil = document.createElement("div");
+    veil.className = "mojibake-veil";
+    veil.textContent = "锟斤拷锟斤拷锟斤拷";
+    chaosLayer.appendChild(veil);
+    document.body.classList.add("no-mojibake");
+    setTimeout(() => {
+      nodes.forEach(([n, v]) => { n.nodeValue = v; });
+      veil.remove();
+      document.body.classList.remove("no-mojibake");
+    }, rand(700, 1200));
+  },
+  /* 假死机 / 内核恐慌 */
+  kernel() {
+    this.busy = true;
+    const el = document.createElement("div");
+    el.className = "kernel";
+    el.innerHTML = `<div id="klog"></div><div class="bar">trae-1024 · kernel panic · 按任意键无效</div>`;
+    chaosLayer.appendChild(el);
+    const lines = [
+      "[    0.000000] Booting TraeOS 10.24 ...",
+      "[    0.001024] Loading mojibake_virus.ko ................ done",
+      "[    0.002048] ERROR: failed to decode UTF-8 sequence",
+      "[    0.003072] 锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷",
+      "[    0.004096] Kernel panic - not syncing: 1024 bytes lost",
+      "[    0.005120] CPU: 0 PID: 1024 Comm: kunka",
+      "[    0.006144] 建议：重启人生（不是）",
+      "[    0.007168] Rebooting in 1 ..."
+    ];
+    let i = 0;
+    const t = setInterval(() => {
+      const log = $("#klog");
+      if (log) log.textContent += lines[i] + "\n";
+      i++;
+      if (i >= lines.length) clearInterval(t);
+    }, 170);
+    setTimeout(() => { clearInterval(t); el.remove(); this.busy = false; }, 2500);
+  }
+};
+
+/* 关卡开场脚本化故障：进入后延迟触发一次，确保玩家一定遇到 */
+function scheduleLevelChaos(level, effect, delay) {
+  setTimeout(() => {
+    if (!state || state.level !== level || document.hidden) return;
+    if (Chaos.busy) return;
+    Chaos[effect]();
+  }, delay);
+}
+
+/* ============================================================
+   背景矩阵雨
+   ============================================================ */
+(function matrixRain() {
+  const cv = $("#matrix"), ctx = cv.getContext("2d");
+  let cols, drops, size = 16;
+  const chars = "01锟斤拷烫1024ABCDEF".split("");
+  function resize() {
+    cv.width = innerWidth; cv.height = innerHeight;
+    cols = Math.ceil(cv.width / size);
+    drops = new Array(cols).fill(0).map(() => rand(0, Math.floor(cv.height / size)));
+  }
+  resize();
+  addEventListener("resize", resize);
+  setInterval(() => {
+    ctx.fillStyle = "rgba(4,6,10,.12)";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.font = `${size}px "Cascadia Code",Consolas,monospace`;
+    for (let i = 0; i < cols; i++) {
+      const ch = chars[rand(0, chars.length - 1)];
+      const y = drops[i] * size;
+      ctx.fillStyle = Math.random() > .96 ? "#58d6eb" : "#39d353";
+      ctx.fillText(ch, i * size, y);
+      if (y > cv.height && Math.random() > .975) drops[i] = 0;
+      drops[i]++;
+    }
+  }, 70);
+})();
+
+/* ============================================================
+   彩带
+   ============================================================ */
+function confetti() {
+  const cv = $("#confetti"), ctx = cv.getContext("2d");
+  cv.width = innerWidth; cv.height = innerHeight;
+  const colors = ["#39d353", "#58d6eb", "#e3b341", "#f85149", "#ff4d9d"];
+  const ps = Array.from({ length: 180 }, () => ({
+    x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * .6,
+    w: 5 + Math.random() * 7, h: 8 + Math.random() * 10,
+    vy: 2 + Math.random() * 4, vx: -1.2 + Math.random() * 2.4,
+    c: colors[rand(0, colors.length - 1)], r: Math.random() * Math.PI, vr: -.1 + Math.random() * .2
+  }));
+  let frames = 0;
+  (function loop() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => {
+      p.y += p.vy; p.x += p.vx; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    if (++frames < 520) requestAnimationFrame(loop);
+    else ctx.clearRect(0, 0, cv.width, cv.height);
+  })();
+}
+
+/* ============================================================
+   控制台彩蛋（第 3 关碎片线索）
+   ============================================================ */
+console.log("%c[编码侦探系统] 欢迎打开开发者工具。", "color:#39d353;font-size:14px;");
+console.log("%c[FRAG-3] 5F00 5F00 5FC3 5FC3 FF0C,  ← 十六进制 Unicode 码点", "color:#e3b341;font-size:13px;");
+console.log("%c[提示] 解码后贴进右上角「解码器」。", "color:#58d6eb;font-size:12px;");
+
+/* ============================================================
+   底栏滚动日志
+   ============================================================ */
+(function ticker() {
+  const logs = [
+    "SYSTEM: 1024 bytes allocated", "WARN: mojibake detected in sector 7",
+    "INFO: detective online", "ERROR: UTF-8 sequence broken at 0x2A",
+    "DEBUG: 锟斤拷 attempts escaped", "OK: fragment signal ping",
+    "SYSTEM: 1 KB free", "WARN: 烫烫烫 in uninitialized memory"
+  ];
+  let s = "";
+  for (let i = 0; i < 12; i++) s += `[${logs[i % logs.length]}]   `;
+  $("#ticker-text").textContent = s + s;
+})();
+
+/* ============================================================
+   事件绑定与启动
+   ============================================================ */
+$("#radar-btn").onclick = openRadar;
+$("#decode-btn").onclick = openDecoder;
+
+home();
+Chaos.start();
+</script>
+</body>
+</html>
