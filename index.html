@@ -404,7 +404,7 @@
   </div>
 </header>
 
-<div class="app">
+<div class="app" id="app">
   <nav class="rail left" id="rail"></nav>
   <main class="stage"><section class="panel" id="screen"></section></main>
   <aside class="rail frag-dock" id="dock"></aside>
@@ -1301,11 +1301,34 @@ const Chaos = {
   ad() {
     this.busy = true;
     const ads = [
-      ["限时狂欢", "程序员生发精华液 · 1024 折", "只要 ¥10.24", "已售 1 KB 瓶"],
-      ["恭喜中奖", "你是本机第 1024 位访客", "机械键盘免费领", "需支付 1024 元邮费"],
-      ["本地消息", "附近程序员都在用的加班保险", "猝死险 1 元起", "受益人：公司"],
-      ["震惊", "某程序员 3 天还清所有需求", "点击查看方法", "产品经理已报警"],
-      ["系统优化", "检测到 1023 个垃圾文件", "一键清理", "（都是你的代码）"]
+      { head: "限时狂欢", sub: "程序员生发精华液 · 1024 折", prize: "只要 ¥10.24", small: "已售 1 KB 瓶", cta: "立即领取" },
+      { head: "恭喜中奖", sub: "你是本机第 1024 位访客", prize: "机械键盘免费领", small: "需支付 1024 元邮费", cta: "立即领取" },
+      { head: "本地消息", sub: "附近程序员都在用的加班保险", prize: "猝死险 1 元起", small: "受益人：公司", cta: "立即领取" },
+      { head: "震惊", sub: "某程序员 3 天还清所有需求", prize: "点击查看方法", small: "产品经理已报警", cta: "立即领取" },
+      { head: "系统优化", sub: "检测到 1023 个垃圾文件", prize: "一键清理", small: "（都是你的代码）", cta: "立即清理" },
+      {
+        head: "职场生存秘笈", sub: "leader 十年经验亲传，不看后悔一辈子", prize: "点击查看详情", small: "已有 1024 人偷偷收藏", cta: "查看详情",
+        detail: `
+          <div class="ad-head" style="font-size:16px">职场生存秘笈 · 作者主页</div>
+          <div style="margin:16px auto;width:64px;height:64px;border-radius:50%;background:#222;border:1px dashed #555;display:flex;align-items:center;justify-content:center;font-size:30px;color:#666">?</div>
+          <div class="ad-sub">神秘人</div>
+          <div class="ad-sub" style="margin-top:12px;color:#888">这个人很神秘，什么也没有留下。</div>
+          <div class="ad-sub" style="font-size:11px;color:#555;margin-top:6px">秘笈内容：0 篇 · 粉丝：1024</div>`,
+        ack: "白来了"
+      },
+      {
+        head: "部门绝密", sub: "领导大瓜！速看，五分钟后删！", prize: "点击查看详情", small: "内部渠道 · 请勿外传", cta: "查看详情",
+        detail: `
+          <div class="ad-head" style="font-size:16px;color:#ff8080">【信息安全部 · 钓鱼测试通报】</div>
+          <div class="ad-sub" style="margin-top:14px;line-height:2;color:#ffb3b3;text-align:left">
+            你刚才点击的链接，是领导亲自发布的钓鱼链接。<br>
+            系统已记录：工作时间摸鱼 1 次。<br>
+            工号、截图、当前表情已一并上报。<br>
+            本月摸鱼额度剩余：1023 次（假的，一次都没有）。
+          </div>
+          <div class="ad-sub" style="font-size:11px;color:#555;margin-top:10px">请立即回到工位，假装什么都没发生。</div>`,
+        ack: "继续上班"
+      }
     ];
     const a = ads[rand(0, ads.length - 1)];
     const el = document.createElement("div");
@@ -1316,31 +1339,41 @@ const Chaos = {
       <div class="ad-tag">广告</div>
       <button class="ad-realx" title="关闭">x</button>
       <div class="ad-body">
-        <div class="ad-head">${a[0]}</div>
-        <div class="ad-sub">${a[1]}</div>
-        <div class="ad-prize">${a[2]}</div>
-        <div class="ad-sub" style="font-size:11px">${a[3]}</div>
+        <div class="ad-head">${a.head}</div>
+        <div class="ad-sub">${a.sub}</div>
+        <div class="ad-prize">${a.prize}</div>
+        <div class="ad-sub" style="font-size:11px">${a.small}</div>
       </div>
       <div class="ad-actions">
-        <button class="ad-cta">立即领取</button>
+        <button class="ad-cta">${a.cta}</button>
         <button class="ad-fakeclose">关闭广告</button>
       </div>
       <div class="ad-small">广告由锟斤拷传媒提供 · 点击任何按钮视为同意 1024 条协议</div>
     `;
     const done = () => { el.remove(); this.busy = false; };
-    // 真关闭：右上角小圆 x
+    // 真关闭：右上角小圆 x（任何时候都安全）
     el.querySelector(".ad-realx").onclick = done;
-    // 领取：抖个机灵，不关游戏
-    el.querySelector(".ad-cta").onclick = () => {
-      const prize = el.querySelector(".ad-prize");
-      prize.textContent = "库存不足";
-      prize.style.fontSize = "18px";
-      el.querySelector(".ad-sub").textContent = "机械键盘已被前 1023 位访客领完。";
-      el.querySelector(".ad-cta").textContent = "那算了";
-      el.querySelector(".ad-cta").onclick = done;
-    };
-    // 假关闭：鬼脸 + 清档回起点
+    // 假关闭：鬼脸 + 清档回起点（任何时候都危险）
     el.querySelector(".ad-fakeclose").onclick = () => { el.remove(); this.ghost(); };
+    const cta = el.querySelector(".ad-cta");
+    if (a.detail) {
+      // 查看详情：展开广告内页
+      cta.onclick = () => {
+        el.querySelector(".ad-body").innerHTML = a.detail;
+        cta.textContent = a.ack || "知道了";
+        cta.onclick = done;
+      };
+    } else {
+      // 领取类：抖个机灵，不关游戏
+      cta.onclick = () => {
+        const prize = el.querySelector(".ad-prize");
+        if (prize) { prize.textContent = "库存不足"; prize.style.fontSize = "18px"; }
+        const sub = el.querySelector(".ad-sub");
+        if (sub) sub.textContent = "奖品已被前 1023 位访客领完。";
+        cta.textContent = "那算了";
+        cta.onclick = done;
+      };
+    }
     chaosLayer.appendChild(el);
     setTimeout(() => { if (el.parentNode) done(); }, 14000);
   },
