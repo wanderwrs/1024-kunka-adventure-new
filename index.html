@@ -307,6 +307,68 @@
   .av-win .av-bar{height:10px;background:#05070a;border:1px solid rgba(57,211,83,.25);border-radius:6px;overflow:hidden;margin:14px 0}
   .av-win .av-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--cyan));transition:width .35s}
   .av-win .av-log{font-size:12px;color:var(--dim);line-height:1.9;min-height:48px;letter-spacing:.5px}
+  /* 弹窗广告 */
+  .ad-popup{
+    position:fixed;width:min(400px,90vw);z-index:9300;pointer-events:auto;
+    background:linear-gradient(160deg,#1c1030,#30124a);color:#ffd76a;
+    border:2px solid #ff4d9d;border-radius:10px;
+    box-shadow:0 0 0 3px rgba(255,77,157,.25),0 24px 70px rgba(0,0,0,.8),0 0 34px rgba(255,77,157,.35);
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    animation:adShake .5s ease-out, adGlow 1.4s ease-in-out .5s infinite alternate;
+  }
+  @keyframes adShake{0%{transform:scale(.6) rotate(-6deg);opacity:0}60%{transform:scale(1.06) rotate(2deg)}100%{transform:scale(1) rotate(0)}}
+  @keyframes adGlow{from{box-shadow:0 0 0 3px rgba(255,77,157,.25),0 24px 70px rgba(0,0,0,.8),0 0 20px rgba(255,77,157,.3)}
+    to{box-shadow:0 0 0 3px rgba(255,215,106,.35),0 24px 70px rgba(0,0,0,.8),0 0 46px rgba(255,215,106,.5)}}
+  .ad-tag{
+    position:absolute;top:-12px;left:14px;background:#f85149;color:#fff;font-size:11px;
+    padding:2px 8px;border-radius:3px;letter-spacing:2px;transform:rotate(-3deg);
+  }
+  .ad-realx{
+    position:absolute;top:-11px;right:-11px;width:24px;height:24px;border-radius:50%;
+    background:#222;color:#aaa;border:1px solid #666;font-size:13px;line-height:1;cursor:pointer;
+    font-family:monospace;z-index:2;
+  }
+  .ad-realx:hover{background:#f85149;color:#fff}
+  .ad-body{padding:26px 20px 16px;text-align:center;line-height:1.8}
+  .ad-head{font-size:19px;font-weight:800;letter-spacing:1px;color:#fff;text-shadow:0 0 12px rgba(255,77,157,.8)}
+  .ad-sub{font-size:13px;color:#ffb3d9;margin-top:6px}
+  .ad-prize{
+    margin:14px auto 4px;display:inline-block;font-size:26px;font-weight:900;color:#ffe259;
+    text-shadow:0 2px 0 #b8860b,0 0 18px rgba(255,226,89,.6);animation:adPrize .7s ease-in-out infinite alternate;
+  }
+  @keyframes adPrize{from{transform:scale(1)}to{transform:scale(1.09)}}
+  .ad-actions{display:flex;gap:12px;justify-content:center;padding:14px 16px 18px}
+  .ad-cta{
+    flex:1;padding:9px 0;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;
+    background:linear-gradient(180deg,#ffe259,#ffa751);color:#5a2d00;
+    box-shadow:0 3px 0 #b8860b;letter-spacing:1px;
+  }
+  .ad-cta:active{transform:translateY(2px);box-shadow:0 1px 0 #b8860b}
+  .ad-fakeclose{
+    flex:1;padding:9px 0;border-radius:6px;font-size:14px;cursor:pointer;
+    background:#3a3a3a;color:#ccc;border:1px solid #555;letter-spacing:1px;
+  }
+  .ad-fakeclose:hover{background:#4a4a4a}
+  .ad-small{font-size:10px;color:rgba(255,255,255,.35);padding:0 0 10px;letter-spacing:.5px}
+  /* 鬼脸 */
+  .ghost-screen{
+    position:fixed;inset:0;z-index:9900;background:#000;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:18px;pointer-events:auto;overflow:hidden;
+    animation:ghostIn .25s steps(3) both;
+  }
+  @keyframes ghostIn{0%{opacity:0;transform:scale(1.4)}100%{opacity:1;transform:scale(1)}}
+  .ghost-face{
+    font-family:"Cascadia Code",Consolas,monospace;font-size:clamp(14px,2.4vw,26px);line-height:1.25;
+    color:#ff2d55;text-shadow:0 0 22px rgba(255,45,85,.9),0 0 60px rgba(255,45,85,.5);
+    animation:ghostJit .12s steps(2) infinite;user-select:none;margin:0;
+  }
+  @keyframes ghostJit{0%{transform:translate(-2px,1px)}50%{transform:translate(2px,-1px)}100%{transform:translate(-1px,-2px)}}
+  .ghost-laugh{
+    font-size:clamp(26px,5vw,54px);font-weight:900;color:#ff2d55;letter-spacing:14px;
+    text-shadow:0 0 18px rgba(255,45,85,.8);animation:ghostJit .15s steps(2) infinite;
+  }
+  .ghost-tip{color:#caa;font-size:15px;letter-spacing:2px}
+  .ghost-tip2{color:#755;font-size:12px;letter-spacing:1px}
   .mojibake-veil{position:fixed;inset:0;z-index:9400;pointer-events:none;display:flex;align-items:center;justify-content:center;
     color:rgba(57,211,83,.14);font-size:clamp(20px,4vw,44px);letter-spacing:8px;overflow:hidden}
   /* 响应式 */
@@ -1131,8 +1193,8 @@ const Chaos = {
     if (this.busy || chaosLayer.children.length) return;
     const lv = state ? state.level : 0;
     const pool = lv >= 2
-      ? ["virus", "bsod", "virus", "freeze", "mojibake", "kernel", "antivirus", "virus"]
-      : ["bsod", "virus", "freeze", "mojibake", "kernel", "virus"];
+      ? ["virus", "bsod", "virus", "freeze", "mojibake", "kernel", "antivirus", "virus", "ad", "ad"]
+      : ["bsod", "virus", "freeze", "mojibake", "kernel", "virus", "ad", "ad"];
     const pick = pool[rand(0, pool.length - 1)];
     this[pick]();
   },
@@ -1234,6 +1296,76 @@ const Chaos = {
     const close = () => { clearInterval(t); el.remove(); this.busy = false; };
     el.querySelector("#av-x").onclick = close;
     setTimeout(close, 4600);
+  },
+  /* 弹窗广告：两个关闭入口，其中一个是假的 */
+  ad() {
+    this.busy = true;
+    const ads = [
+      ["限时狂欢", "程序员生发精华液 · 1024 折", "只要 ¥10.24", "已售 1 KB 瓶"],
+      ["恭喜中奖", "你是本机第 1024 位访客", "机械键盘免费领", "需支付 1024 元邮费"],
+      ["本地消息", "附近程序员都在用的加班保险", "猝死险 1 元起", "受益人：公司"],
+      ["震惊", "某程序员 3 天还清所有需求", "点击查看方法", "产品经理已报警"],
+      ["系统优化", "检测到 1023 个垃圾文件", "一键清理", "（都是你的代码）"]
+    ];
+    const a = ads[rand(0, ads.length - 1)];
+    const el = document.createElement("div");
+    el.className = "ad-popup";
+    el.style.left = rand(10, Math.max(20, innerWidth - 430)) + "px";
+    el.style.top = rand(90, Math.max(140, innerHeight - 330)) + "px";
+    el.innerHTML = `
+      <div class="ad-tag">广告</div>
+      <button class="ad-realx" title="关闭">x</button>
+      <div class="ad-body">
+        <div class="ad-head">${a[0]}</div>
+        <div class="ad-sub">${a[1]}</div>
+        <div class="ad-prize">${a[2]}</div>
+        <div class="ad-sub" style="font-size:11px">${a[3]}</div>
+      </div>
+      <div class="ad-actions">
+        <button class="ad-cta">立即领取</button>
+        <button class="ad-fakeclose">关闭广告</button>
+      </div>
+      <div class="ad-small">广告由锟斤拷传媒提供 · 点击任何按钮视为同意 1024 条协议</div>
+    `;
+    const done = () => { el.remove(); this.busy = false; };
+    // 真关闭：右上角小圆 x
+    el.querySelector(".ad-realx").onclick = done;
+    // 领取：抖个机灵，不关游戏
+    el.querySelector(".ad-cta").onclick = () => {
+      const prize = el.querySelector(".ad-prize");
+      prize.textContent = "库存不足";
+      prize.style.fontSize = "18px";
+      el.querySelector(".ad-sub").textContent = "机械键盘已被前 1023 位访客领完。";
+      el.querySelector(".ad-cta").textContent = "那算了";
+      el.querySelector(".ad-cta").onclick = done;
+    };
+    // 假关闭：鬼脸 + 清档回起点
+    el.querySelector(".ad-fakeclose").onclick = () => { el.remove(); this.ghost(); };
+    chaosLayer.appendChild(el);
+    setTimeout(() => { if (el.parentNode) done(); }, 14000);
+  },
+  /* 鬼脸：点到假关闭的惩罚，清进度回开始界面 */
+  ghost() {
+    this.busy = true;
+    localStorage.removeItem(SAVE_KEY);
+    const el = document.createElement("div");
+    el.className = "ghost-screen";
+    el.innerHTML = `
+<pre class="ghost-face">      .-""""""""-.
+    .'  _      _  '.
+   /   (o)    (o)   \\
+  |        __        |
+  |      \\    /      |
+   \\      '..'      /
+    '.  \\______/  .'
+      '-........-'</pre>
+    <div class="ghost-laugh">哈 哈 哈</div>
+    <div class="ghost-tip">你点到了假关闭按钮。</div>
+    <div class="ghost-tip">你的进度已被锟斤拷之王当场吃掉。</div>
+    <div class="ghost-tip2">正在把你送回游戏开始界面，本次不作任何保存 ...</div>
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => location.reload(), 3000);
   },
   /* 假装卡死 */
   freeze() {
